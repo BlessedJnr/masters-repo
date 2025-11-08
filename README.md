@@ -25,7 +25,7 @@ python3 --version
 ## Installation
 
 1.  **Save the Application Code:**
-    Ensure you have saved the provided Python code into a file named `nn_ui.py`.
+    Ensure you have saved the provided Python code into a file named `main_ui.py`.
 
 2.  **Install Dependencies:**
     This project relies on `PyQt6` for the window framework and `matplotlib` for the graphing. Open your terminal or command prompt and run the following command:
@@ -47,10 +47,10 @@ python3 --version
 2.  Execute the script:
 
     ```bash
-    python nn_ui.py
+    python main_ui.py
     ```
 
-    *(On some systems, you might need to use `python3 nn_ui.py`)*
+    *(On some systems, you might need to use `python3 main_ui.py`)*
 
 3.  The application window should appear.
 
