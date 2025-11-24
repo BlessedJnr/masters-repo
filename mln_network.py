@@ -2,45 +2,30 @@ import numpy as np
 
 class NeuralNetwork:
     """
-    A simple Multi-Layer Perceptron (MLP) class.
+    A simple Multi-Layer Perceptron (MLP) class that supports
+    both classification (softmax + cross-entropy) and regression (linear + MSE).
     """
-    
-    def __init__(self, input_dim, hidden_layer_sizes, output_dim, use_bias=True):
-        """
-        Initializes the network's architecture and parameters.
 
-        Args:
-            input_dim (int): Number of input features (e.g., 2 for X, Y).
-            hidden_layer_sizes (list): A list of integers, where each integer is the
-                                       number of neurons in a hidden layer.
-                                       Example: [10, 5] means 2 hidden layers
-                                       with 10 and 5 neurons.
-            output_dim (int): Number of output neurons (e.g., number of classes).
-            use_bias (bool): Whether to include bias terms.
-        """
+    def __init__(self, input_dim, hidden_layer_sizes, output_dim, use_bias=True):
         self.layer_sizes = [input_dim] + hidden_layer_sizes + [output_dim]
         self.use_bias = use_bias
-        
-        # --- These are the `Weight` and `Bias` parameters ---
-        # They are initialized here, to be updated during training.
+
         self.weights = []
         self.biases = []
-        
-        # Initialize weights and biases for each layer
-        # (from input_layer -> hidden_layer_1, hidden_1 -> hidden_2, ..., hidden_N -> output)
+
         for i in range(len(self.layer_sizes) - 1):
-            # Weights are initialized randomly
-            # Shape is (neurons_in_previous_layer, neurons_in_current_layer)
-            w = np.random.randn(self.layer_sizes[i], self.layer_sizes[i+1]) * 0.1
+            w = np.random.randn(self.layer_sizes[i], self.layer_sizes[i + 1]) * 0.1
             self.weights.append(w)
-            
+
             if self.use_bias:
-                # Biases are initialized to zeros
-                # Shape is (1, neurons_in_current_layer)
-                b = np.zeros((1, self.layer_sizes[i+1]))
+                b = np.zeros((1, self.layer_sizes[i + 1]))
                 self.biases.append(b)
-                
-    def forward_pass(self, X, act_func):
+
+    # --------------- Forward pass ---------------
+    def forward_pass(self, X, act_func, output_activation="softmax"):
+        """
+        output_activation: "softmax" (classification) or "linear" (regression)
+        """
         activations = [X]
         a = X
 
@@ -52,72 +37,114 @@ class NeuralNetwork:
             a = act_func(z)
             activations.append(a)
 
-        # --- Output Layer (Softmax for multi-class) ---
-        output_z = np.dot(a, self.weights[-1])
+        # Output layer
+        z_out = np.dot(a, self.weights[-1])
         if self.use_bias:
-            output_z += self.biases[-1]
+            z_out += self.biases[-1]
 
-        exp_z = np.exp(output_z - np.max(output_z, axis=1, keepdims=True))
-        output_a = exp_z / np.sum(exp_z, axis=1, keepdims=True)
+        if output_activation == "softmax":
+            # Softmax with numerical stability
+            exp_z = np.exp(z_out - np.max(z_out, axis=1, keepdims=True))
+            a_out = exp_z / np.sum(exp_z, axis=1, keepdims=True)
+        elif output_activation == "linear":
+            a_out = z_out
+        else:
+            raise ValueError(f"Unknown output_activation: {output_activation}")
 
-        activations.append(output_a)
+        activations.append(a_out)
         return activations
 
+    # --------------- Prediction helpers ---------------
+    def predict_classes(self, X, hidden_act_func):
+        """
+        Classification prediction: returns class indices.
+        """
+        activations = self.forward_pass(X, hidden_act_func, output_activation="softmax")
+        output = activations[-1]
+        return np.argmax(output, axis=1)
 
-    
-    def predict(self, X, hidden_act_func):
+    def predict_regression(self, X, hidden_act_func):
         """
-        Predicts the class labels for a given input X.
-        
-        Args:
-            X (np.array): Input data.
-            hidden_act_func (function): The activation function for hidden layers.
-            
-        Returns:
-            np.array: A 1D array of predicted class indices (e.g., 0, 1, 2).
+        Regression prediction: returns continuous outputs.
         """
-        # Use the forward_pass to get layer activations
-        activations = self.forward_pass(X, hidden_act_func)
-        
-        # Get the final output layer activations
-        output_layer_activations = activations[-1]
-        
-        # The predicted class is the one with the highest activation/score
-        predictions = np.argmax(output_layer_activations, axis=1)
-        return predictions
+        activations = self.forward_pass(X, hidden_act_func, output_activation="linear")
+        output = activations[-1]
+        return output
 
-    def train(self, X_train, Y_train, learning_rate, epochs, act_func, act_deriv):
+    # --------------- Single train function ---------------
+    def train(self, X_train, Y_train,
+              learning_rate, epochs, max_error,
+              act_func, act_deriv,
+              problem_type="classification"):
         """
-        Trains the network using backpropagation with Softmax + Cross-Entropy loss.
+        Unified training function.
+
+        problem_type:
+            - "classification" → softmax + cross-entropy
+            - "regression"     → linear + MSE
         """
+        problem_type = problem_type.lower()
+        if problem_type not in ("classification", "regression"):
+            raise ValueError(f"Unknown problem_type: {problem_type}")
+
         error_history = []
 
+        if problem_type == "classification":
+            output_activation = "softmax"
+        else:
+            output_activation = "linear"
+
         for epoch in range(epochs):
-            # --- 1. Forward Pass ---
-            activations = self.forward_pass(X_train, act_func)
+            # Forward pass
+            activations = self.forward_pass(X_train, act_func,
+                                            output_activation=output_activation)
             output = activations[-1]
 
-            # --- 2. Compute Error ---
-            output_error = Y_train - output
+            if problem_type == "classification":
+                # Error & delta for cross-entropy + softmax
+                output_error = Y_train - output
+                delta = output_error
+            else:
+                # Regression: MSE
+                diff = Y_train - output
+                mse = np.mean(diff ** 2)
+                error_history.append(mse)
 
-            # --- 3. Output Layer Delta (Softmax + CrossEntropy) ---
-            delta = output_error
+                # delta for linear output
+                delta = diff
+
+            # Build deltas list
             deltas = [delta]
 
-            # --- 4. Backpropagate through hidden layers ---
+            # Backprop through hidden layers
             for i in range(len(self.layer_sizes) - 2, 0, -1):
                 delta = (deltas[0] @ self.weights[i].T) * act_deriv(activations[i])
                 deltas.insert(0, delta)
 
-            # --- 5. Gradient Descent Updates ---
+            # Gradient updates
             for i in range(len(self.weights)):
-                self.weights[i] += learning_rate * (activations[i].T @ deltas[i])
+                grad_w = activations[i].T @ deltas[i]
+                self.weights[i] += learning_rate * grad_w
                 if self.use_bias:
-                    self.biases[i] += learning_rate * np.sum(deltas[i], axis=0, keepdims=True)
+                    grad_b = np.sum(deltas[i], axis=0, keepdims=True)
+                    self.biases[i] += learning_rate * grad_b
 
-            # --- 6. Cross-Entropy Loss for Monitoring ---
-            current_error = -np.mean(np.sum(Y_train * np.log(output + 1e-8), axis=1))
-            error_history.append(current_error)
+            # Compute error metric for logging / early stopping
+            if problem_type == "classification":
+                current_error = -np.mean(np.sum(Y_train * np.log(output + 1e-8), axis=1))
+                error_history.append(current_error)
+            else:
+                current_error = mse  # already computed
+
+            # Some debug every 20 epochs
+            if (epoch + 1) % 20 == 0 or epoch == 0:
+                tag = "CLS" if problem_type == "classification" else "REG"
+                print(f"[{tag}] Epoch {epoch+1}/{epochs} - Error: {current_error:.4f}")
+
+            # Early stopping
+            if current_error <= max_error:
+                tag = "CLS" if problem_type == "classification" else "REG"
+                print(f"[{tag}] Early stopping at epoch {epoch+1}, error={current_error:.6f}")
+                break
 
         return error_history
-
