@@ -284,8 +284,7 @@ class NeuralNetworkUI(QMainWindow):
         if self.trained_network is not None:
             self.plot_decision_boundary_classification(self.trained_network, act_func)
 
-    # ----------------- Regression -----------------
-       # ----------------- Regression -----------------
+        # ----------------- Regression -----------------
     def _start_training_regression(self):
         global data_points
         if not data_points:
@@ -346,7 +345,6 @@ class NeuralNetworkUI(QMainWindow):
 
         if self.trained_network is not None:
             self.plot_regression_fit(X_raw, Y_train, self.trained_network, act_func)
-
 
     # ----------------- Shared error plot -----------------
     def _plot_error_history(self, error_history):
