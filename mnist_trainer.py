@@ -43,7 +43,7 @@ def build_and_train_cnn_feature_extractor(
     """
     Builds a small CNN in TensorFlow/Keras, trains it on MNIST,
     and returns dense feature vectors for train & test sets.
-    Those features are then fed into our custom MLP.
+    Those features are then fed into the custom MLP.
     """
 
     # Prepare data for CNN: add channel dim and normalize
@@ -194,15 +194,41 @@ def confusion_matrix(preds, labels, num_classes=10):
 # ---------------------------------------------------------------------
 # 6. Plotting functions
 # ---------------------------------------------------------------------
-def plot_error(error_history):
+def plot_error(error_history, train_acc=None, test_acc=None ):
     plt.figure(figsize=(6, 4))
+
     epochs_range = np.arange(1, len(error_history) + 1)
     plt.plot(epochs_range, error_history, marker="o")
+
+    final_error = error_history[-1]
+
     plt.xlabel("Epoch")
     plt.ylabel("Cross-entropy loss")
     plt.title("MNIST Training Error (MLP on CNN features)")
     plt.grid(True)
+
+    # ✅ Text box with metrics
+    metrics_text = f"Final Error: {final_error:.6f}"
+
+    if train_acc is not None:
+        metrics_text += f"\nTrain Accuracy: {train_acc * 100:.2f}%"
+
+    if test_acc is not None:
+        metrics_text += f"\nTest Accuracy: {test_acc * 100:.2f}%"
+
+    plt.gca().text(
+        0.98,
+        0.98,
+        metrics_text,
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        verticalalignment="top",
+        horizontalalignment="right",
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.85),
+    )
+
     plt.tight_layout()
+
 
 
 def plot_confusion_matrix(cm, title="Confusion Matrix"):
@@ -290,7 +316,12 @@ def main():
     print(f"Test  accuracy (MLP on CNN features): {test_acc * 100:.2f}%")
 
     # 6. Plots
-    plot_error(error_history)
+    plot_error(
+        error_history,
+        train_acc=train_acc,
+        test_acc=test_acc,
+    )
+
 
     cm = confusion_matrix(test_preds, y_test_int, num_classes=10)
     plot_confusion_matrix(cm, title="MNIST Confusion Matrix (Test)")

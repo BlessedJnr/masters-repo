@@ -149,6 +149,11 @@ class NeuralNetworkUI(QMainWindow):
         self.setup_error_plot()
         right_panel_layout.addWidget(self.error_canvas)
 
+        # ✅ Total error label (under graph)
+        self.total_error_label = QLabel("Total Error: N/A")
+        self.total_error_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        right_panel_layout.addWidget(self.total_error_label)
+
         # Signals
         self.num_classes_spin.valueChanged.connect(self.update_class_dropdown)
         self.hidden_layers_spin.valueChanged.connect(self.update_hidden_layer_boxes)
@@ -222,6 +227,8 @@ class NeuralNetworkUI(QMainWindow):
         self.trained_network = None
         self.setup_input_plot()
         self.setup_error_plot()
+        self.total_error_label.setText("Total Error: N/A")
+
 
     # ====================== Training (single entry point) ======================
     def start_training(self):
@@ -358,10 +365,16 @@ class NeuralNetworkUI(QMainWindow):
         if error_history:
             epochs_range = np.arange(1, len(error_history) + 1)
             self.error_ax.plot(epochs_range, error_history)
+
+            # ✅ Show total (final) error
+            final_error = error_history[-1]
+            self.total_error_label.setText(f"Total Error (final): {final_error:.6f}")
         else:
+            self.total_error_label.setText("Total Error: N/A")
             print("Warning: empty error history – nothing to plot.")
 
         self.error_canvas.draw_idle()
+
 
     # ====================== Classification decision boundary ======================
     def plot_decision_boundary_classification(self, nn, hidden_act_func):
